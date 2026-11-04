@@ -1,0 +1,138 @@
+# Architecture
+
+Roqqu Studio is a two-service app: a **Next.js canvas** (`apps/web`) and a **FastAPI backend** (`apps/api`, Python package `roqqu_studio`). There is no database; all state is in memory in the API process.
+
+## Request flow
+
+```
+Browser (React Flow canvas)
+  └─ fetch  /studio-backend/*            (same-origin, keeps the session cookie first-party)
+       └─ Next.js rewrite (next.config.ts) ──► FastAPI  (STUDIO_API_ORIGIN, default http://127.0.0.1:8010)
+            ├─ /assistant/*      Rooky (AI) ─► ai/composer ─► ai/providers (Anthropic | OpenAI | Google | keyword fallback)
+            │                                  └─ output is validated by analysis/ and remediation/ before being returned
+            ├─ /workflows, /analyze, /remediate   ─► store.py (in-memory versions) + analysis/ (deterministic rules)
+            ├─ /executions       ─► executor/engine.py ─► adapter (MockAdapter | SandboxAdapter) ─► integrations/roqqu/client.py ─► sandbox.roqqu.com
+            ├─ /preview/{id}/*   ─► artifacts/generator.py (Jinja2 shop, invoice, dashboard pages), orders/service.py, ajo.py
+            └─ /roqqu/webhook  ─► HMAC-SHA512 check ─► orders_service.verify() (re-queries Roqqu; payload is only a trigger)
+```
+
+In production the web and API are separate Cloud Run services. The browser then calls the API origin directly (`NEXT_PUBLIC_API_URL`) and the session cookie switches to `SameSite=None; Secure` (`api/main.py:_session_id`).
+
+## Key idea: provider-neutral IR
+
+- `ir/types.py` defines `CapabilityTag`s (e.g. `AUTHORITATIVE_VERIFICATION`, `SIGNATURE_CHECK`, `MONEY_MOVEMENT`) and `DomainType`s. It never mentions a provider.
+- `providers/roqqu.py` maps each Roqqu endpoint to a `NodeTypeDef` (type string `roqqu.*`, tags, ports, `when_to_use` text, doc URL). `providers/core.py` holds provider-neutral nodes (events, safety steps, control flow, `app.*`).
+- `analysis/rules.py` reasons only over tags, never node type strings. Rules: MON001, 002, 003, 004, 009, 011, 012.
+- `remediation/` rewrites a flawed graph into a clean one (Apply-Fix).
+- `ai/composer.py` is a generate → verify → refine → refuse loop. The model proposes, the analyzer decides.
+
+## Backend module map (`apps/api/roqqu_studio`)
+
+| Module | Role |
+|---|---|
+| `api/main.py` (1667 lines) | All HTTP routes, session cookie, CORS, webhook, SSE trace stream |
+| `api/seed.py` | Seeds the demo business when `STUDIO_SEED_DEMO=1` |
+| `config.py` | `Settings` (pydantic-settings); sandbox-only guard (`assert_sandbox`) |
+| `credentials.py` | Per-workflow Roqqu keys, write-only, registered with the log redactor |
+| `store.py` | In-memory versioned workflow store, seeded with the two hero fixtures |
+| `ir/` | `Workflow`, `Node`, `Edge` models, types, port type-checking |
+| `providers/` | Node catalog (`base.py`, `core.py`, `roqqu.py`) |
+| `analysis/` | Rule engine and rules |
+| `remediation/` | Apply-Fix graph operations |
+| `ai/` | Rooky: `providers.py` (LLM adapters + failover), `composer.py`, `explain.py`, `rooky.py` (intent), `fidelity.py`, `schema.py` |
+| `executor/` | `engine.py` (interpreter), `adapter.py` (`MockAdapter`, `SandboxAdapter`), `sandbox.py` (custom code node), `events.py`, `store.py` |
+| `integrations/roqqu/client.py` | `RoqquSandboxClient`: authenticate, initialize_transaction, initiate_transfer, create_reserved_account, query_transaction |
+| `integrations/email.py`, `whatsapp.py`, `notifications.py` | ZeptoMail email and Evolution API WhatsApp |
+| `orders/service.py` | Order store; pending, verified, rejected transitions driven only by provider truth |
+| `ajo.py`, `onboarding.py`, `money.py` | Savings-circle logic, onboarding profile, exact `Decimal` money |
+| `artifacts/` | Jinja2 templates for shop, invoice, payment page, dashboard |
+| `templates/` | Starter workflows: ajo, invoice, payroll, sell_online |
+| `codegen/python.py` | Generates runnable Python from a workflow |
+| `observability/` | structlog, redaction, OpenTelemetry tracing |
+
+## Frontend module map (`apps/web/src`)
+
+| Path | Role |
+|---|---|
+| `app/layout.tsx`, `app/page.tsx` | Root layout (title "Roqqu Studio") and single page rendering `<StudioApp />` |
+| `components/StudioApp.tsx` | Top-level container: onboarding path, canvas, panels |
+| `components/WorkflowCanvas.tsx`, `StudioNode.tsx`, `NodePalette.tsx` | React Flow canvas and palette |
+| `components/ChatPanel.tsx` | Rooky chat |
+| `components/ReviewPanel.tsx`, `TracePanel.tsx` | Analyzer findings and execution trace |
+| `components/BusinessDashboard.tsx`, `AjoPanel.tsx`, `PreviewArtifactPanel.tsx` | Business-owner outputs |
+| `components/PathGate.tsx`, `TemplatePicker.tsx`, `ProductsStep.tsx`, `OnboardingTour.tsx` | Onboarding |
+| `components/CredentialsForm.tsx`, `RunSettingsPanel.tsx`, `ConfigPanel.tsx` | Keys and run settings |
+| `hooks/` | `useStudioGraph`, `useStudioSession`, `useExecutionTrace`, `useOnboardingTour` |
+| `lib/api.ts`, `lib/http.ts` | API client (axios) and base-URL resolution |
+| `types/` | TypeScript mirrors of backend models |
+| `data/*.json` | Offline fixtures for the two hero workflows |
+| `public/figma/` | Static icons and images, including `roqqu-logo*.svg` |
+
+State management: React hooks only (`useStudioGraph` for the React Flow graph, `useStudioSession` for the profile). No Redux or Zustand.
+
+## Data model
+
+- **Workflow**: `id`, `name`, `version`, `nodes[]` (`type`, `config`, tags), `edges[]` (`source`, `target`, `kind`).
+- **Order**: `reference`, `artifact_id`, `workflow_id`, line items, total (`Decimal`), `status` (pending, verified, rejected).
+- **StudioProfile**: `session_id`, `path` (business or developer), `step`, `goal`, `products[]`, `workflow_id`.
+- **ExecutionRun / ExecutionEvent**: buffered, redacted trace, streamed over SSE.
+
+All of it is lost on API restart.
+
+## External services
+
+| Service | Used for | Env |
+|---|---|---|
+| Roqqu API Service (test + live) | Payment links, deposit addresses, deposit verification, crypto payouts, balances, prices, NGN rates | `RAS_TEST_KEY`, `RAS_LIVE_KEY`, `RAS_MODE`, `ROQQU_PAY_TOKEN`, `ROQQU_NGN_PER_USD`, `ROQQU_BASE_URL`, `ALLOW_PRODUCTION_EXECUTION` |
+| Anthropic / OpenAI / Google | Rooky | `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, plus `*_MODEL`, `AI_TIMEOUT_S`, `ROOKY_COMPOSE_ROUNDS` |
+| ZeptoMail | Email receipts | `ZEPTOMAIL_API_KEY`, `ZEPTOMAIL_SENDER`, `ZEPTOMAIL_REPLY_TO` |
+| Evolution API | WhatsApp | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` |
+| OTLP collector (optional) | Tracing | `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| Google Cloud Run | Deploy | `scripts/deploy-cloud-run.sh`, `.github/workflows/deploy.yml` |
+
+Web env: `NEXT_PUBLIC_API_URL` (browser base URL, empty means use `/studio-backend`), `STUDIO_API_ORIGIN` (build-time rewrite target).
+
+## Where each page's code lives
+
+The app has one route (`/`). Screens are states of `StudioApp.tsx`:
+
+| Screen | Frontend | Backend |
+|---|---|---|
+| Path gate (developer or business) | `PathGate.tsx` | `/studio/profile` (`onboarding.py`) |
+| Template picker | `TemplatePicker.tsx` | `/templates`, `/workflows/from-template/{id}` (`templates/`) |
+| Canvas, palette, chat | `WorkflowCanvas.tsx`, `NodePalette.tsx`, `ChatPanel.tsx` | `/catalog`, `/assistant/*` |
+| Review | `ReviewPanel.tsx` | `/analyze`, `/remediate` |
+| Run and trace | `TracePanel.tsx`, `useExecutionTrace.ts` | `/executions`, `/executions/{id}/events/stream` |
+| Code tab | `StudioApp.tsx` | `/workflows/{id}/code` (`codegen/python.py`) |
+| Business dashboard | `BusinessDashboard.tsx` | `/workflows/{id}/dashboard`, `/preview/{id}/totals` |
+| Shop, invoice, contribute pages | server-rendered HTML | `/preview/{id}/shop`, `/invoice/{ref}`, `/contribute` (`artifacts/templates/*.j2`) |
+
+## Known gaps in the repo's own story
+
+- The Windows `preexec_fn` in `executor/sandbox.py` makes 4 tests fail on Windows (they pass on Linux CI).
+- Live `NEXT_PUBLIC` calls and Cloud Run config are documented but the deployed service's backend URL is not in the repo.
+
+## Roqqu status
+
+The integration follows the Roqqu API Service docs (https://roqqu-api-services.gitbook.io/ras, base `https://service.roqqu.com/v1`, `x-staging-api-key` for a test key or `x-api-key` for a live key, form-encoded bodies).
+
+| Studio node | Roqqu endpoint |
+|---|---|
+| `roqqu.payment_link` | `POST /payment-links` (NGN priced, BTC / USDT TRC20 / USDT BEP20) |
+| `roqqu.generate_wallet`, `invoice_wallet`, `member_wallet` | `POST /wallets/generate-wallet` (customer) or `/wallets/generate-merchant-wallet` |
+| `roqqu.get_wallets` (the authoritative verify) | `POST /wallets/get-addresses` (`total_received`) |
+| `roqqu.send_token`, `batch_send`, `split_send`, `refund_send` | `POST /wallets/send` (one call per payee, returns a `refid`) |
+| `roqqu.delete_wallet` | `DELETE /wallets/delete` |
+| `roqqu.blockchain_address` (Check Address) | `POST /wallets/what-network` |
+| `roqqu.tx_status` | `GET /transaction/refId/{refid}` |
+| `roqqu.balances`, `network_fee`, `swap` | `POST /balances`, `/transaction/network-fee`, `/trade/swap` |
+| `roqqu.token_price`, `all_prices`, `fiat_rates` | `GET /prices`, `GET /rates` (public, cached 60 s) |
+| `event.payment_webhook` + `safety.verify_signature` | Encrypted webhook `{hash}`; decrypted with the API key, IV from the `x-api-key` header |
+
+Nodes whose names are not RAS endpoints (`invoice_wallet`, `member_wallet`, `batch_send`, `split_send`, `refund_send`) are Studio steps built on Generate Wallet or Send, because RAS has no invoice-address, batch, split or customer-refund endpoint.
+
+Payments: NGN totals are priced with RAS `GET /rates` (NGN per USD) and `GET /prices`. The buyer gets a fresh merchant deposit address on `/preview/{id}/deposit/{ref}` and can switch between USDT (TRC20), USDT (BEP20) and BTC there (`POST` the same URL with `token=`); each switch generates a new address, and verification checks the network stored on the order. The order flips to paid only when Get Addresses shows enough received. Webhooks are AES-256-CTR encrypted with the API key (`integrations/roqqu/webhook.py`). A test key never moves real money; a live key is refused unless `ALLOW_PRODUCTION_EXECUTION=true`.
+
+The files in `docs/` are the original Monnify Studio planning notes and still describe the Monnify sandbox.
+
+AI providers: `anthropic | openai | google | nvidia`. `nvidia` uses NVIDIA NIM through the OpenAI SDK (`NVIDIA_API_KEY`, optional `NVIDIA_MODEL`, `NVIDIA_BASE_URL`).

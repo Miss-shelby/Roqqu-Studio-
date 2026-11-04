@@ -1,0 +1,5 @@
+.env
+.env.*
+.pglite
+.next
+node_modules

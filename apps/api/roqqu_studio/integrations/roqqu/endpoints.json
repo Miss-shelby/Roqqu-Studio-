@@ -1,0 +1,1685 @@
+{
+ "base_url": "https://service.roqqu.com/v1",
+ "auth": "x-staging-api-key: <test key> (test mode) or x-api-key: <live key> (live). RAS console -> Settings -> API Keys and Webhooks",
+ "docs": "https://roqqu-api-services.gitbook.io/ras",
+ "webhook": {
+  "title": "Webhooks (encrypted)",
+  "summary": "Roqqu POSTs every deposit, send, refund and payment-link event to the webhook URL set in the RAS console.",
+  "note": "The body is {\"hash\": \"<hex>\"}: AES-256-CTR ciphertext. Key = the first 32 characters of your API key; IV = the hex value of the x-api-key request header. A body that does not decrypt to JSON is not from Roqqu. Events: token_received, token_sent, token_refunded, payment_link_completed, payment_link_completed_overpaid, payment_link_failed. Dedupe on event_id.",
+  "payload": {
+   "event_id": "48291037465829103746",
+   "event_type": "token_received",
+   "meta_data": {
+    "address": "0xfa624f26737cdd712572b45bd5d5ebc9f9f124c3",
+    "network": "bep20",
+    "token": "usdt",
+    "value": 2,
+    "hash": "0xdeccb101ea58b71a57ca4dc4a2dbf0887de775409a8096b05a277518e96010ce",
+    "status": "confirmed",
+    "customer": {
+     "email": "jean@email.com",
+     "first_name": "Jean",
+     "last_name": "Billy"
+    }
+   },
+   "datetime": "2025-12-20T20:42:28.000Z"
+  },
+  "doc_url": "https://roqqu-api-services.gitbook.io/ras/webhooks/decrypt-webhook-body"
+ },
+ "endpoints": [
+  {
+   "id": "delete-wallet",
+   "section": "Wallets",
+   "title": "Delete Wallet",
+   "summary": "Delete a wallet address.",
+   "method": "DELETE",
+   "path": "/wallets/delete",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Network code to parse in requests (e.g. `bitcoin`, `trc20`)"
+    },
+    {
+     "name": "address",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Wallet address to delete"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet deleted successfully",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/delete-wallet"
+  },
+  {
+   "id": "generate-wallet",
+   "section": "Wallets",
+   "title": "Generate Wallet",
+   "summary": "Generate a new wallet address for a customer.",
+   "method": "POST",
+   "path": "/wallets/generate-wallet",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "customer must include email, first_name and last_name.",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "bitcoin",
+     "description": "Network code to parse in requests. Use values like `bitcoin`, `erc20`, `bep20`, `trc20`"
+    },
+    {
+     "name": "customer",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "{\"email\":\"jean@email.com\",\"first_name\":\"Jean\",\"last_name\":\"Billy\"}",
+     "description": "Yes"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet generated successfully",
+     "data": {
+      "address": "3KVmcuvX6vPVKYiyKz6DjVmhZvnkKbA1zu"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/generate-wallet"
+  },
+  {
+   "id": "generate-wallet-for-self",
+   "section": "Wallets",
+   "title": "Generate Wallet For Self",
+   "summary": "Generate a wallet address for the authenticated merchant.",
+   "method": "POST",
+   "path": "/wallets/generate-merchant-wallet",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "bitcoin",
+     "description": "Network code to parse in requests. Use values like `bitcoin`, `erc20`, `bep20`, `trc20`"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet generated successfully",
+     "data": {
+      "address": "36jVM83y7K3iN8hkbLgzRrCKSQkuPwnrks"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/generate-wallet-for-self"
+  },
+  {
+   "id": "get-a-network",
+   "section": "Wallets",
+   "title": "Get A Network",
+   "summary": "Retrieve configuration for a specific network.",
+   "method": "POST",
+   "path": "/wallets/get-network",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "bitcoin",
+     "description": "Network to retrieve config for (e.g., bitcoin)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "network retrieved successfully",
+     "data": {
+      "id": 1,
+      "network": "bitcoin",
+      "status": 1,
+      "send": 1,
+      "receive": 1,
+      "generate": 1,
+      "tx_explorer": "1",
+      "addr_explorer": "1",
+      "created_at": "2023-07-12T18:05:01.000Z",
+      "updated_at": "2023-07-12T18:25:39.000Z",
+      "deleted_at": null
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/get-a-network"
+  },
+  {
+   "id": "get-addresses",
+   "section": "Wallets",
+   "title": "Get Addresses",
+   "summary": "Retrieve all addresses for a specific network.",
+   "method": "POST",
+   "path": "/wallets/get-addresses",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "erc20",
+     "description": "Symbol of network (e.g., erc20)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet retrieved successfully",
+     "data": [
+      {
+       "address": "0x019ada547366d2cdbf5532250b61f08a4a856276",
+       "network": "erc20",
+       "total_received": 0,
+       "genesis": 0,
+       "customer": null,
+       "created_at": "2023-08-09T17:51:53.000Z",
+       "updated_at": "2023-08-09T17:51:53.000Z"
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/get-addresses"
+  },
+  {
+   "id": "get-all-networks",
+   "section": "Wallets",
+   "title": "Get All Networks",
+   "summary": "Retrieve all available networks and their configurations.",
+   "method": "POST",
+   "path": "/wallets/get-all-networks",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "networks retrieved",
+     "data": [
+      {
+       "id": 1,
+       "network": "bitcoin",
+       "status": 1,
+       "send": 1,
+       "receive": 1,
+       "generate": 1,
+       "tx_explorer": "1",
+       "addr_explorer": "1",
+       "created_at": "2023-07-12T18:05:01.000Z",
+       "updated_at": "2023-07-12T18:25:39.000Z",
+       "deleted_at": null
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/get-all-networks"
+  },
+  {
+   "id": "get-wallet-by-token",
+   "section": "Wallets",
+   "title": "Get Wallet By Token",
+   "summary": "Retrieve wallet information for a specific token.",
+   "method": "POST",
+   "path": "/wallets/get-wallet",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "token",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "btc",
+     "description": "Symbol of token (e.g., btc)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet retrieved successfully",
+     "data": {
+      "token": "btc",
+      "send": [],
+      "receive": []
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/get-wallet-by-token"
+  },
+  {
+   "id": "send-coin",
+   "section": "Wallets",
+   "title": "Send Coin",
+   "summary": "Send cryptocurrency to an address.",
+   "method": "POST",
+   "path": "/wallets/send",
+   "auth": true,
+   "moves_money": true,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "Fees come out of the token sent. Returns a refid at once; the token_sent webhook confirms on-chain.",
+   "params": [
+    {
+     "name": "amount",
+     "in": "body",
+     "required": true,
+     "type": "integer",
+     "default": "2",
+     "description": "Amount of token to send (must be greater than 0)"
+    },
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "trc20",
+     "description": "Network code to parse in requests (e.g. `trc20`, `bep20`, `bitcoin`)"
+    },
+    {
+     "name": "to",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "TUyR2sEjzDZNmbnac2ZkJ54h64m6TmVN71",
+     "description": "Destination address"
+    },
+    {
+     "name": "token",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "usdt",
+     "description": "Token symbol to send (e.g. `usdt`, `btc`)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "send operation successful",
+     "data": {
+      "refid": "10704380386654367514"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/send-coin"
+  },
+  {
+   "id": "what-network",
+   "section": "Wallets",
+   "title": "What Network",
+   "summary": "Determine the network an address is associated with.",
+   "method": "POST",
+   "path": "/wallets/what-network",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "address",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+     "description": "Address to be queried"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "network for address retrieved",
+     "data": [
+      "bitcoin"
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/wallets/what-network"
+  },
+  {
+   "id": "create-payment-link",
+   "section": "Payment links",
+   "title": "Create Payment Link",
+   "summary": "Creates a new payment link that generates unique wallet addresses for customers to make cryptocurrency payments. Supported networks: Bitcoin (BTC), Tron (TRC20 USDT), and BNB Smart Chain (BEP20 USDT). You can either pre-generate wallet addresses at creation by passing the `wallets` parameter, or omit it to have wallets generated on demand when the customer starts a payment session (via the payment link session endpoint). See **Get Supported Networks** above for the list of valid network/token combinations.",
+   "method": "POST",
+   "path": "/payment-links",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "payment_reference: 1-20 letters and numbers. Links expire after 2 hours by default.",
+   "params": [
+    {
+     "name": "amount",
+     "in": "body",
+     "required": true,
+     "type": "number",
+     "default": "1000",
+     "description": "Payment amount (must be greater than 0)"
+    },
+    {
+     "name": "customer_details",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "{\"email\":\"customer@example.com\",\"first_name\":\"John\",\"last_name\":\"Doe\",\"phone\":\"+1234567890\"}",
+     "description": "JSON string containing customer information. Required fields: email, first_name, last_name. Optional field: phone"
+    },
+    {
+     "name": "payment_reference",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "ORDER123ABC",
+     "description": "Alphanumeric reference for this payment (1-20 characters, letters and numbers only). Used to identify the payment in your system"
+    },
+    {
+     "name": "success_url",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "https://yourwebsite.com/payment/success",
+     "description": "HTTPS URL to redirect customer after successful payment. Must use HTTPS protocol"
+    },
+    {
+     "name": "cancel_url",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "https://yourwebsite.com/payment/cancel",
+     "description": "HTTPS URL to redirect customer if payment is cancelled. Must use HTTPS protocol"
+    },
+    {
+     "name": "expires_at",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "",
+     "description": "ISO 8601 date-time when the payment link expires. Must be a future date. If not provided, defaults to 2 hours from creation time"
+    },
+    {
+     "name": "metadata",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "",
+     "description": "Optional JSON string containing additional metadata you want to store with the payment link. This will be included in webhook notifications"
+    },
+    {
+     "name": "amount_currency",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "ngn",
+     "description": "Currency code for the amount (default: 'ngn'). Must be a supported currency"
+    },
+    {
+     "name": "wallets",
+     "in": "body",
+     "required": false,
+     "type": "object",
+     "default": "[{\"network\":\"bitcoin\",\"token\":\"BTC\"},{\"network\":\"trc20\",\"token\":\"USDT\"},{\"network\":\"bep20\",\"token\":\"USDT\"}]",
+     "description": "Optional array of `{ network, token }` objects. If provided and non-empty, wallet addresses are generated at creation. If omitted or empty, wallets are generated on demand when the customer starts a session. Valid combinations: bitcoin/BTC, trc20/USDT, bep20/USDT. Only one wallet per network allowed"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "payment link generated successfully",
+     "data": {
+      "refid": "abc123def456ghi789",
+      "payment_reference": "ORDER123ABC",
+      "payment_link": "https://payment.roqqu.com/abc123def456ghi789",
+      "wallets": [
+       {
+        "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+        "network": "bitcoin",
+        "token": "BTC"
+       },
+       {
+        "address": "TXYZabcdefghijklmnopqrstuvwxyz123456",
+        "network": "trc20",
+        "token": "USDT"
+       },
+       {
+        "address": "0x1234567890abcdef1234567890abcdef12345678",
+        "network": "bep20",
+        "token": "USDT"
+       }
+      ],
+      "wallet_pre_generated": 1,
+      "amount_required": 1000,
+      "amount_currency": "ngn",
+      "expires_at": "2024-12-31T23:59:59Z"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/payment-links/create-payment-link"
+  },
+  {
+   "id": "get-supported-networks",
+   "section": "Payment links",
+   "title": "Get Supported Networks",
+   "summary": "Returns the list of supported network/token combinations for payment links. Use this when building the `wallets` parameter for Create Payment Link or to validate network/token values. No authentication required.",
+   "method": "GET",
+   "path": "/payment-links/supported-networks",
+   "auth": false,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "supported networks and tokens retrieved successfully",
+     "data": {
+      "supported_networks": [
+       {
+        "network": "bitcoin",
+        "tokens": [
+         "BTC"
+        ]
+       },
+       {
+        "network": "trc20",
+        "tokens": [
+         "USDT"
+        ]
+       },
+       {
+        "network": "bep20",
+        "tokens": [
+         "USDT"
+        ]
+       }
+      ]
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/payment-links/get-supported-networks"
+  },
+  {
+   "id": "get-crypto-balances",
+   "section": "Balances",
+   "title": "Get Crypto Balances",
+   "summary": "Retrieve cryptocurrency balances for a merchant.",
+   "method": "POST",
+   "path": "/balances",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "email",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "ebentest@yopmail.com",
+     "description": "Email of merchant"
+    },
+    {
+     "name": "token",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "btc",
+     "description": "Symbol of token (e.g., btc, eth, usdt)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "balance retrieved successfully",
+     "data": {
+      "balance": {
+       "id": 2,
+       "btc": 0,
+       "eth": 0,
+       "usdt": 137,
+       "trx": 0,
+       "sol": 0,
+       "bnb": 0,
+       "ltc": 0,
+       "doge": 0,
+       "bch": 0,
+       "xrp": 0,
+       "shib": 0,
+       "ada": 0,
+       "twt": 0,
+       "busd": 0,
+       "comp": 0,
+       "created_at": "2023-08-09T18:27:44.000Z",
+       "updated_at": "2023-08-29T18:06:30.000Z",
+       "deleted_at": null
+      }
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/balances/get-crypto-balances"
+  },
+  {
+   "id": "buy",
+   "section": "Trade",
+   "title": "Buy",
+   "summary": "Buy cryptocurrency.",
+   "method": "POST",
+   "path": "/trade/buy",
+   "auth": true,
+   "moves_money": true,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "amount",
+     "in": "body",
+     "required": true,
+     "type": "number",
+     "default": "0.00002",
+     "description": "Amount of token you want to buy (must be greater than 0)"
+    },
+    {
+     "name": "token",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "btc",
+     "description": "Token to buy (e.g., btc, eth)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "buy operation successful",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/trade/buy"
+  },
+  {
+   "id": "get-tokens",
+   "section": "Trade",
+   "title": "Get Tokens",
+   "summary": "Retrieve list of available tokens and their configurations.",
+   "method": "GET",
+   "path": "/tokens",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "tokens retrieved",
+     "data": {
+      "tokens": [
+       "btc",
+       "eth",
+       "usdt",
+       "bnb",
+       "ltc"
+      ],
+      "tokenConfigs": [
+       {
+        "id": 1,
+        "token": "btc",
+        "price_usd": 52091.11,
+        "status": 1,
+        "send": 1,
+        "receive": 1,
+        "buy": 1,
+        "sell": 1,
+        "swap": 1,
+        "minimum_trade": 1,
+        "maximum_trade": 100000,
+        "minimum_send": 1,
+        "maximum_send": 100000,
+        "minimum_receive": 1,
+        "maximum_receive": 100000,
+        "send_fee": 1,
+        "send_networks": "[\"bitcoin\"]",
+        "receive_networks": "[\"bitcoin\"]",
+        "created_at": "2023-07-12T18:05:01.000Z",
+        "updated_at": "2024-02-19T16:28:01.000Z",
+        "deleted_at": null
+       }
+      ]
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/trade/get-tokens"
+  },
+  {
+   "id": "sell",
+   "section": "Trade",
+   "title": "Sell",
+   "summary": "Sell cryptocurrency.",
+   "method": "POST",
+   "path": "/trade/sell",
+   "auth": true,
+   "moves_money": true,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "amount",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "0.00002",
+     "description": "Amount of token you want to sell (must be greater than 0)"
+    },
+    {
+     "name": "token",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "btc",
+     "description": "Token to sell (e.g., btc, eth)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "buy operation successful",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/trade/sell"
+  },
+  {
+   "id": "swap",
+   "section": "Trade",
+   "title": "Swap",
+   "summary": "Swap one cryptocurrency for another.",
+   "method": "POST",
+   "path": "/trade/swap",
+   "auth": true,
+   "moves_money": true,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "USDT is not allowed in swaps: use buy or sell for USDT.",
+   "params": [
+    {
+     "name": "amount",
+     "in": "body",
+     "required": true,
+     "type": "integer",
+     "default": "200",
+     "description": "Amount of the source token to convert (must be greater than 0)"
+    },
+    {
+     "name": "from",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "usdt",
+     "description": "Token to convert (e.g. `btc`, `eth`). USDT is not allowed — use buy/sell"
+    },
+    {
+     "name": "to",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "btc",
+     "description": "Token to receive after conversion. USDT is not allowed, use buy/sell"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "swap operation successful",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/trade/swap"
+  },
+  {
+   "id": "get-network-fees",
+   "section": "Transactions",
+   "title": "Get Network Fees",
+   "summary": "Retrieve estimated network fees for a specific network.",
+   "method": "POST",
+   "path": "/transaction/network-fee",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "solana",
+     "description": "Network code to parse in requests. Supported: `bitcoin`, `erc20`, `bep20`, `base`, `litecoin`, `xrp`, `dogecoin`, `solana`"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "fees data received",
+     "data": {
+      "fee": 5e-06
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/get-network-fees"
+  },
+  {
+   "id": "get-transaction-fees",
+   "section": "Transactions",
+   "title": "Get Transaction Fees",
+   "summary": "Get your transaction fee rate, and optionally the fee amount for a given token and amount.",
+   "method": "GET",
+   "path": "/transaction/fee",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "token",
+     "in": "query",
+     "required": false,
+     "type": "string",
+     "default": "",
+     "description": "Token to calculate the fee for (default: `USDT`)"
+    },
+    {
+     "name": "amount",
+     "in": "query",
+     "required": false,
+     "type": "number",
+     "default": "",
+     "description": "Amount to calculate the fee for. When set, response includes `fee`"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "transaction fee retrieved successfully",
+     "data": {
+      "percentage": 1,
+      "symbol": "btc",
+      "fee": 0.0001
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/get-transaction-fees"
+  },
+  {
+   "id": "get-transaction-status-by-transaction-hash",
+   "section": "Transactions",
+   "title": "Get Transaction Status by Transaction Hash",
+   "summary": "Retrieve deposit transaction status fields by transaction hash.",
+   "method": "GET",
+   "path": "/transaction/status/{tx_hash}",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "tx_hash",
+     "in": "path",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Blockchain transaction hash"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "transaction retrieved for txhash: 0xdeccb101ea58b71a57ca4dc4a2dbf0887de775409a8096b05a277518e96010ce",
+     "data": {
+      "status": 1,
+      "email": "merchant@business.com",
+      "value": 2,
+      "network": "erc20"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/get-transaction-status-by-transaction-hash"
+  },
+  {
+   "id": "get-transaction-by-transaction-hash",
+   "section": "Transactions",
+   "title": "Get Transaction by Transaction Hash",
+   "summary": "Retrieve deposit transaction details by transaction hash.",
+   "method": "GET",
+   "path": "/transaction/deposit/{tx_hash}",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "tx_hash",
+     "in": "path",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Blockchain transaction hash"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "transaction retrieved for tx_hash: 0xdeccb101ea58b71a57ca4dc4a2dbf0887de775409a8096b05a277518e96010ce",
+     "data": {
+      "ref": "48291037465829103746",
+      "status": 1,
+      "genesis": 0,
+      "email": "merchant@business.com",
+      "value": 2,
+      "network": "erc20",
+      "token": "usdt",
+      "address": "0xfa624f26737cdd712572b45bd5d5ebc9f9f124c3",
+      "sender": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+      "extra": null,
+      "tx_hash": "0xdeccb101ea58b71a57ca4dc4a2dbf0887de775409a8096b05a277518e96010ce",
+      "output_pos": null,
+      "customer": null,
+      "total_received": 0,
+      "created_at": "2025-12-20T20:42:28.000Z",
+      "updated_at": "2025-12-21T17:45:49.000Z",
+      "deleted_at": null
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/get-transaction-by-transaction-hash"
+  },
+  {
+   "id": "get-send-withdrawal-queue-record-by-reference-id",
+   "section": "Transactions",
+   "title": "Get send/withdrawal queue record by Reference ID",
+   "summary": "Retrieve a send/withdrawal queue record by reference ID (`refid`).",
+   "method": "GET",
+   "path": "/transaction/refId/{refid}",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "refid",
+     "in": "path",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Send reference ID"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "transaction retrieved for search Ref: [object Object]",
+     "data": {
+      "id": 1,
+      "refid": "10704380386654367514",
+      "checked": 0,
+      "status": 0,
+      "email": "merchant@business.com",
+      "value": 1,
+      "_to": "TUyR2sEjzDZNmbnac2ZkJ54h64m6TmVN71",
+      "token": "usdt",
+      "network": "trc20",
+      "fee": 1,
+      "contract": null,
+      "tx_hash": null,
+      "processed_at": null,
+      "created_at": "2023-08-10T08:22:17.000Z",
+      "updated_at": "2023-08-10T08:22:17.000Z"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/get-send-withdrawal-queue-record-by-reference-id"
+  },
+  {
+   "id": "refund-transaction",
+   "section": "Transactions",
+   "title": "Refund Transaction",
+   "summary": "Request a refund for a failed send. The send must be at least one hour old. If an on-chain hash exists, the API verifies the send failed on-chain before queuing the refund.",
+   "method": "POST",
+   "path": "/transaction/refund",
+   "auth": true,
+   "moves_money": true,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "refid",
+     "in": "body",
+     "required": true,
+     "type": "integer",
+     "default": "10704380386654367514",
+     "description": "Reference ID of the send (`token_send_queue.refid`)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "token queued for refund successfully",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/refund-transaction"
+  },
+  {
+   "id": "requery-transaction",
+   "section": "Transactions",
+   "title": "Requery Transaction",
+   "summary": "Requery / re-check a transaction status on a specific network.",
+   "method": "POST",
+   "path": "/transaction/requery/{network}",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "network",
+     "in": "path",
+     "required": true,
+     "type": "string",
+     "default": "",
+     "description": "Network code to parse in requests. Supported: `bep20`, `erc20`, `base`, `bitcoin`, `trc20`, `xrp`, `solana`, `litecoin`"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "Transaction confirmed in Block.",
+     "data": null
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/requery-transaction"
+  },
+  {
+   "id": "search-transaction-on-blockchain",
+   "section": "Transactions",
+   "title": "Search Transaction On Blockchain",
+   "summary": "Search for a transaction on the blockchain by hash and network.",
+   "method": "POST",
+   "path": "/transaction/search-blockchain-txhash",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "tx_hash",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "0x9ffd7f17177b6f517195bb5c3e8a769eff276ff56e875ffbba703ee6a940c23b",
+     "description": "Blockchain transaction hash"
+    },
+    {
+     "name": "network",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "erc20",
+     "description": "Network code to parse in requests (e.g. `erc20`, `bep20`, `bitcoin`, `trc20`, `solana`, `xrp`, `base`)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "Transaction retrieved successfully",
+     "data": "{\"transactionHash\":\"0x9ffd7f...\",\"status\":true,\"blockNumber\":\"123456\"}"
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/search-transaction-on-blockchain"
+  },
+  {
+   "id": "token-deposits",
+   "section": "Transactions",
+   "title": "Token Deposits",
+   "summary": "Retrieve token deposit transactions for the authenticated merchant.",
+   "method": "GET",
+   "path": "/transaction/token-deposit",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "deposits retrieved successfully",
+     "data": [
+      {
+       "ref": "48291037465829103746",
+       "status": 1,
+       "genesis": 0,
+       "email": "merchant@business.com",
+       "value": 2,
+       "network": "erc20",
+       "token": "usdt",
+       "address": "0xfa624f26737cdd712572b45bd5d5ebc9f9f124c3",
+       "sender": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+       "extra": null,
+       "tx_hash": "0xdeccb101ea58b71a57ca4dc4a2dbf0887de775409a8096b05a277518e96010ce",
+       "output_pos": null,
+       "customer": null,
+       "total_received": 0,
+       "created_at": "2025-12-20T20:42:28.000Z",
+       "updated_at": "2025-12-21T17:45:49.000Z",
+       "deleted_at": null
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/token-deposits"
+  },
+  {
+   "id": "token-withdrawals",
+   "section": "Transactions",
+   "title": "Token Withdrawals",
+   "summary": "Retrieve token withdrawal (send) transactions for the authenticated merchant.",
+   "method": "GET",
+   "path": "/transaction/token-withdrawal",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "withdrawals retrieved successfully",
+     "data": [
+      {
+       "id": 1,
+       "refid": "10704380386654367514",
+       "checked": 0,
+       "status": 0,
+       "email": "merchant@business.com",
+       "value": 1,
+       "_to": "TUyR2sEjzDZNmbnac2ZkJ54h64m6TmVN71",
+       "token": "usdt",
+       "network": "trc20",
+       "fee": 1,
+       "contract": null,
+       "tx_hash": null,
+       "processed_at": null,
+       "created_at": "2023-08-10T08:22:17.000Z",
+       "updated_at": "2023-08-10T08:22:17.000Z"
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/transaction/token-withdrawals"
+  },
+  {
+   "id": "get-transaction-history",
+   "section": "History",
+   "title": "Get Transaction History",
+   "summary": "Retrieve transaction history with optional filters.",
+   "method": "POST",
+   "path": "/history",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "Buy, sell and swap emit no webhook: confirm them here or with balances.",
+   "params": [
+    {
+     "name": "token",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "eth",
+     "description": "Token name (e.g., eth)"
+    },
+    {
+     "name": "email",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "test@business.com",
+     "description": "User email"
+    },
+    {
+     "name": "network",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "",
+     "description": "Network (e.g., trc20) - currently not applicable"
+    },
+    {
+     "name": "direction",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "credit",
+     "description": "Direction of transaction (credit/debit)"
+    },
+    {
+     "name": "timestamp",
+     "in": "body",
+     "required": false,
+     "type": "string",
+     "default": "2023-08-29",
+     "description": "From when a transaction was inserted (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)"
+    },
+    {
+     "name": "status",
+     "in": "body",
+     "required": false,
+     "type": "integer",
+     "default": "1",
+     "description": "Transaction status (0 or 1) for success or failure"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "history retrieved successfully",
+     "data": {
+      "history": [
+       {
+        "id": 4158,
+        "status": 1,
+        "direction": "debit",
+        "balance_before": 0,
+        "balance_after": 0,
+        "email": "test@business.com",
+        "token": "usdt",
+        "amount": 2,
+        "created_at": "2023-08-29T18:06:28.000Z",
+        "updated_at": "2023-08-29T18:06:30.000Z",
+        "deleted_at": null
+       }
+      ]
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/history/get-transaction-history"
+  },
+  {
+   "id": "get-crypto-prices",
+   "section": "Market",
+   "title": "Get Crypto Prices",
+   "summary": "Retrieve real-time cryptocurrency prices from the Roqqu API. This endpoint provides current market prices for all supported cryptocurrencies, updated every minute.",
+   "method": "GET",
+   "path": "/prices",
+   "auth": false,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {},
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/market-data/get-crypto-prices"
+  },
+  {
+   "id": "get-fiat-rates",
+   "section": "Market",
+   "title": "Get Fiat Rates",
+   "summary": "Retrieve real-time fiat currency exchange rates from the Roqqu API. This endpoint provides current exchange rates for various fiat currencies against the base currency, updated every minute.",
+   "method": "GET",
+   "path": "/rates",
+   "auth": false,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {},
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/market-data/get-fiat-rates"
+  },
+  {
+   "id": "blacklist-customer",
+   "section": "Customers",
+   "title": "Blacklist Customer",
+   "summary": "Add a customer to the blacklist.",
+   "method": "POST",
+   "path": "/customers/blacklist",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "email",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "jean@email.com",
+     "description": "Email of customer to be blacklisted"
+    },
+    {
+     "name": "reason",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "bad behaviour and ignorance",
+     "description": "Reason for blacklist"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "customer blacklisted successfully",
+     "data": 2
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/customers/blacklist-customer"
+  },
+  {
+   "id": "get-all-customers",
+   "section": "Customers",
+   "title": "Get All Customers",
+   "summary": "Retrieve a list of all customers.",
+   "method": "GET",
+   "path": "/customers",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "customers retrieved successfully",
+     "data": [
+      {
+       "id": 4,
+       "email": "jean@email.com",
+       "first_name": "Jean",
+       "last_name": "Billy",
+       "phone_number": null,
+       "blacklisted": 0,
+       "verified": 0,
+       "created_at": "2023-08-29T23:00:00.000Z"
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/customers/get-all-customers"
+  },
+  {
+   "id": "whitelist-customer",
+   "section": "Customers",
+   "title": "Whitelist Customer",
+   "summary": "Remove a customer from the blacklist.",
+   "method": "POST",
+   "path": "/customers/whitelist",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "email",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "jean@email.com",
+     "description": "Email of customer to be whitelisted"
+    },
+    {
+     "name": "reason",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "customer resolved issues",
+     "description": "Reason to whitelist"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "customer removed from blacklist successfully",
+     "data": 2
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/customers/whitelist-customer"
+  },
+  {
+   "id": "get-whitelisted-ips",
+   "section": "IP whitelist",
+   "title": "Get Whitelisted IPs",
+   "summary": "Retrieve all whitelisted IP addresses.",
+   "method": "GET",
+   "path": "/ip",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "ip address retrieved successfully",
+     "data": [
+      {
+       "id": 1,
+       "merchant": "test@business.com",
+       "ip_name": "Webhook Server",
+       "ip_address": "10.199.212.002",
+       "created_at": "2023-09-02T23:00:00.000Z",
+       "updated_at": "2023-09-02T23:00:00.000Z"
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/ip-whitelist/get-whitelisted-ips"
+  },
+  {
+   "id": "whitelist-ip",
+   "section": "IP whitelist",
+   "title": "Whitelist IP",
+   "summary": "Add a new IP address to the whitelist.",
+   "method": "POST",
+   "path": "/ip",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "ip_name",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "Transaction Processor",
+     "description": "Server Name or Identifier"
+    },
+    {
+     "name": "ip_address",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "112.199.212.099",
+     "description": "Server Address"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "ip address saved successfully",
+     "data": [
+      1
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/ip-whitelist/whitelist-ip"
+  },
+  {
+   "id": "get-webhook-url",
+   "section": "Webhooks",
+   "title": "Get Webhook Url",
+   "summary": "Retrieve the configured webhook URL.",
+   "method": "GET",
+   "path": "/webhooks",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "webhooks retrieved successfully",
+     "data": {
+      "id": 1,
+      "merchant": "test1@business.com",
+      "url": "https://test-webhooks.com/webhooks/coins",
+      "event_types": "[\"coin-sends\", \"coin-received\", \"wallet-generated\"]",
+      "status": "1",
+      "created_at": "2023-09-06T01:27:40.000Z",
+      "updated_at": "2023-09-06T01:32:26.000Z"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/webhooks/get-webhook-url"
+  },
+  {
+   "id": "retrigger-webhook-events",
+   "section": "Webhooks",
+   "title": "Retrigger Webhook Events",
+   "summary": "Manually retrigger webhook events for a specific transaction hash. This endpoint allows administrators to resend webhook notifications that may have failed or were missed.",
+   "method": "POST",
+   "path": "/webhooks/retrigger",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": true,
+   "note": "",
+   "params": [
+    {
+     "name": "transaction_hash",
+     "in": "body",
+     "required": true,
+     "type": "string",
+     "default": "0x9ffd7f17177b6f517195bb5c3e8a769eff276ff56e875f",
+     "description": "The blockchain transaction hash to retrigger webhook events for"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "Successfully retriggered 2 webhook event(s)",
+     "data": {
+      "retriggered_count": 1,
+      "webhook_ids": [
+       123
+      ],
+      "transaction_hash": "0x9ffd7f17177b6f517195bb5c3e8a769eff276ff56e875ffbba703ee6a940c23b"
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/webhooks/retrigger-webhook-events"
+  },
+  {
+   "id": "get-stats",
+   "section": "Analytics",
+   "title": "Get Stats",
+   "summary": "Retrieve overall statistics.",
+   "method": "GET",
+   "path": "/analytics/stats",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "volume data retrieved successfully",
+     "data": {
+      "total_volume": 622,
+      "total_credit": 597,
+      "total_debit": 25
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/analytics/get-stats"
+  },
+  {
+   "id": "get-volume-chart",
+   "section": "Analytics",
+   "title": "Get Volume Chart",
+   "summary": "Retrieve volume analytics data.",
+   "method": "GET",
+   "path": "/analytics/volume",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [
+    {
+     "name": "interval",
+     "in": "query",
+     "required": false,
+     "type": "string",
+     "default": "",
+     "description": "Interval type: daily or monthly (default: daily)"
+    }
+   ],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "volume data retrieved successfully",
+     "data": [
+      {
+       "date": "2022-08-11",
+       "value": 0
+      },
+      {
+       "date": "2022-08-12",
+       "value": 0
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/analytics/get-volume-chart"
+  },
+  {
+   "id": "get-wallet-generation-chart",
+   "section": "Analytics",
+   "title": "Get Wallet Generation Chart",
+   "summary": "Retrieve wallet generation analytics data.",
+   "method": "GET",
+   "path": "/analytics/wallet-generation",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "volume data retrieved successfully",
+     "data": [
+      {
+       "date": "2022-08-11",
+       "value": 0
+      }
+     ]
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/analytics/get-wallet-generation-chart"
+  },
+  {
+   "id": "get-wallet-metrics",
+   "section": "Analytics",
+   "title": "Get Wallet Metrics",
+   "summary": "Retrieve wallet generation metrics.",
+   "method": "GET",
+   "path": "/analytics/wallet-stats",
+   "auth": true,
+   "moves_money": false,
+   "paid_lookup": false,
+   "side_effects": false,
+   "note": "",
+   "params": [],
+   "examples": {
+    "200": {
+     "status": "success",
+     "message": "wallet generation metrics retrieved successfully",
+     "data": {
+      "totalWalletGenerated": 61,
+      "totalDeletedWallets": 1,
+      "breakdownByNetwork": [
+       {
+        "network": "bitcoin",
+        "count": 14
+       },
+       {
+        "network": "erc20",
+        "count": 16
+       },
+       {
+        "network": "trc20",
+        "count": 15
+       }
+      ]
+     }
+    }
+   },
+   "doc_url": "https://roqqu-api-services.gitbook.io/ras/analytics/get-wallet-metrics"
+  }
+ ]
+}

@@ -1,0 +1,168 @@
+/**
+ * React Flow surface: full-bleed canvas under overlay panels (#44).
+ * Fit-view after dagre layout when structure changes (#37). Provenance: #4, #37, #44, D14.
+ */
+"use client";
+
+import { useEffect } from "react";
+import {
+  Background,
+  BackgroundVariant,
+  MiniMap,
+  ReactFlow,
+  useReactFlow,
+  type Connection,
+  type Edge,
+  type Node,
+  type NodeTypes,
+  type OnEdgesChange,
+  type OnNodesChange,
+  type OnSelectionChangeFunc,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+
+import type { ConnectionFeedback } from "@/hooks/useStudioGraph";
+import { readDragNodeType } from "@/lib/studioDnd";
+import type { StudioNodeData } from "@/types";
+import { StudioNode } from "./StudioNode";
+import { StudioZoomControls } from "./StudioZoomControls";
+
+const nodeTypes: NodeTypes = { studio: StudioNode };
+
+export interface WorkflowCanvasProps {
+  nodes: Node<StudioNodeData>[];
+  edges: Edge[];
+  loading: boolean;
+  busy: boolean;
+  typeError: string | null;
+  diffNote: string | null;
+  connectionFeedback: ConnectionFeedback;
+  layoutNonce: number;
+  /** Hide minimap in Maincollapsed (Figma 21:1732). */
+  showMiniMap?: boolean;
+  onNodesChange: OnNodesChange<Node<StudioNodeData>>;
+  onEdgesChange: OnEdgesChange<Edge>;
+  onConnect: (connection: Connection) => void;
+  onSelectionChange: OnSelectionChangeFunc;
+  onGraphDirty: () => void;
+  /** Palette → canvas drop (flow coords = intended top-left). */
+  onDropNode?: (typeKey: string, flow: { x: number; y: number }) => void;
+}
+
+/** Side panels float over the canvas: fit the flow into the strip between them. */
+function visiblePadding() {
+  const width = (selector: string) =>
+    document.querySelector(selector)?.getBoundingClientRect().width ?? 0;
+  const left = width(".studio-panels__left");
+  const right = width(".studio-sidebar--right");
+  return {
+    left: `${Math.round(left + 32)}px`,
+    right: `${Math.round(right + 32)}px`,
+    top: "96px",
+    bottom: "56px",
+  } as const;
+}
+
+function FitViewOnLayout({ layoutNonce }: { layoutNonce: number }) {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (layoutNonce === 0) return;
+    const frame = requestAnimationFrame(() => {
+      void fitView({ padding: visiblePadding(), duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [layoutNonce, fitView]);
+
+  return null;
+}
+
+export function WorkflowCanvas({
+  nodes,
+  edges,
+  loading,
+  busy,
+  typeError,
+  diffNote,
+  connectionFeedback,
+  layoutNonce,
+  showMiniMap = true,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onSelectionChange,
+  onGraphDirty,
+  onDropNode,
+}: WorkflowCanvasProps) {
+  const { screenToFlowPosition } = useReactFlow();
+  const connectionStroke =
+    connectionFeedback === "valid"
+      ? "var(--accent)"
+      : connectionFeedback === "invalid"
+        ? "var(--danger)"
+        : "var(--edge-control)";
+
+  return (
+    <div
+      className={`studio-canvas${
+        connectionFeedback ? ` is-connection-${connectionFeedback}` : ""
+      }`}
+    >
+      {(loading || busy) && (
+        <div className="studio-banner">{loading ? "Loading IR…" : "Working…"}</div>
+      )}
+      {typeError && (
+        <div className="studio-banner studio-banner--error">{typeError}</div>
+      )}
+      {connectionFeedback === "valid" && !typeError && (
+        <div className="studio-banner studio-banner--ok">Connection valid</div>
+      )}
+      {diffNote && !typeError && connectionFeedback !== "valid" && (
+        <div className="studio-banner studio-banner--ok">{diffNote}</div>
+      )}
+      <ReactFlow
+        colorMode="dark"
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={(nodeChanges) => {
+          onNodesChange(nodeChanges);
+          onGraphDirty();
+        }}
+        onEdgesChange={(edgeChanges) => {
+          onEdgesChange(edgeChanges);
+          onGraphDirty();
+        }}
+        onConnect={(connection) => void onConnect(connection)}
+        onSelectionChange={onSelectionChange}
+        onDragOver={(event) => {
+          if (!onDropNode) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(event) => {
+          if (!onDropNode) return;
+          event.preventDefault();
+          const typeKey = readDragNodeType(event.dataTransfer);
+          if (!typeKey) return;
+          const flow = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+          onDropNode(typeKey, { x: flow.x - 90, y: flow.y - 30 });
+        }}
+        nodeTypes={nodeTypes}
+        fitView
+        minZoom={0.3}
+        deleteKeyCode={["Backspace", "Delete"]}
+        proOptions={{ hideAttribution: true }}
+        connectionLineStyle={{ stroke: connectionStroke, strokeWidth: 2 }}
+      >
+        <FitViewOnLayout layoutNonce={layoutNonce} />
+        <Background id="minor" variant={BackgroundVariant.Lines} gap={24} lineWidth={0.5} color="#162038" />
+        <Background id="major" variant={BackgroundVariant.Lines} gap={120} lineWidth={0.8} color="#1e2b4a" />
+        <StudioZoomControls />
+        {showMiniMap ? <MiniMap pannable zoomable /> : null}
+      </ReactFlow>
+    </div>
+  );
+}

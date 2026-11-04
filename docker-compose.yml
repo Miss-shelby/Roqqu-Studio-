@@ -1,0 +1,71 @@
+# Roqqu Studio - the whole product in one command:
+#
+#     docker compose up
+#
+# Opens the studio at http://localhost:3000. Works with ZERO keys (Rooky routes
+# by keyword, orders run on the mock adapter). Drop keys into a .env file next
+# to this one (copy .env.example) to unlock real compose + the live Roqqu API
+# + real notifications. No database, no extra services - all in memory.
+services:
+  api:
+    build: ./apps/api
+    environment:
+      PORT: "8080"
+      STUDIO_ENV: development
+      # Only matters with RAS_LIVE_KEY: "true" lets live runs move real crypto.
+      ALLOW_PRODUCTION_EXECUTION: "${ALLOW_PRODUCTION_EXECUTION:-false}"
+      STUDIO_SEED_DEMO: "1"                  # seed "Mama Nkechi Foods" so it is never empty
+      CORS_ORIGINS: "http://localhost:3000"
+      # --- all optional: absent = keyless fallback, present = live features ---
+      AI_PROVIDER: "${AI_PROVIDER:-anthropic}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
+      RAS_TEST_KEY: "${RAS_TEST_KEY:-}"
+      RAS_LIVE_KEY: "${RAS_LIVE_KEY:-}"
+      RAS_MODE: "${RAS_MODE:-}"
+      ROQQU_PAY_TOKEN: "${ROQQU_PAY_TOKEN:-usdt_trc20}"
+      ROQQU_NGN_PER_USD: "${ROQQU_NGN_PER_USD:-1360}"
+      ZEPTOMAIL_API_KEY: "${ZEPTOMAIL_API_KEY:-}"
+      ZEPTOMAIL_SENDER: "${ZEPTOMAIL_SENDER:-}"
+      ZEPTOMAIL_REPLY_TO: "${ZEPTOMAIL_REPLY_TO:-}"
+      EVOLUTION_API_URL: "${EVOLUTION_API_URL:-}"
+      EVOLUTION_API_KEY: "${EVOLUTION_API_KEY:-}"
+      EVOLUTION_INSTANCE: "${EVOLUTION_INSTANCE:-}"
+      STUDIO_NOTIFY_NUMBER: "${STUDIO_NOTIFY_NUMBER:-}"
+      STUDIO_NOTIFY_EMAIL: "${STUDIO_NOTIFY_EMAIL:-}"
+    ports:
+      - "8010:8080"   # bonus: raw API + OpenAPI docs at http://localhost:8010/docs
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        # Empty on purpose: the browser then calls the same-origin /studio-backend
+        # proxy, keeping the onboarding session cookie first-party.
+        NEXT_PUBLIC_API_URL: ""
+        # Baked into the /studio-backend rewrite -> the api container.
+        STUDIO_API_ORIGIN: "http://api:8080"
+    environment:
+      PORT: "8080"
+      # Business accounts, store and invoices (see .env.example, "Web app").
+      DATABASE_URL: "${DATABASE_URL:-}"
+      SESSION_SECRET: "${SESSION_SECRET:-}"
+      RAS_TEST_KEY: "${RAS_TEST_KEY:-}"
+      RAS_LIVE_KEY: "${RAS_LIVE_KEY:-}"
+      RAS_MODE: "${RAS_MODE:-}"
+      ALLOW_PRODUCTION_EXECUTION: "${ALLOW_PRODUCTION_EXECUTION:-false}"
+      BREVO_API_KEY: "${BREVO_API_KEY:-}"
+      BREVO_SENDER: "${BREVO_SENDER:-}"
+      ZEPTOMAIL_API_KEY: "${ZEPTOMAIL_API_KEY:-}"
+      ZEPTOMAIL_SENDER: "${ZEPTOMAIL_SENDER:-}"
+      BIZ_DAILY_SEND_USD: "${BIZ_DAILY_SEND_USD:-500}"
+      PUBLIC_APP_URL: "${PUBLIC_APP_URL:-}"
+      STUDIO_API_ORIGIN: "http://api:8080"
+    ports:
+      - "3000:8080"
+    depends_on:
+      - api
+    restart: unless-stopped

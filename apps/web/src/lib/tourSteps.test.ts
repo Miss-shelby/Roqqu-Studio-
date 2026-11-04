@@ -1,0 +1,91 @@
+/**
+ * Tour step config tests (#103).
+ */
+import { describe, expect, it } from "vitest";
+
+import {
+  BUSINESS_WORKFLOW_TOUR_STEPS,
+  BUSINESS_TOUR_STEPS,
+  DEVELOPER_TOUR_STEPS,
+  tourDismissKey,
+  tourStepsFor,
+} from "@/lib/tourSteps";
+
+describe("tourSteps (#103)", () => {
+  it("business tour has Figma 7 plain-words steps __AC2", () => {
+    expect(tourStepsFor("business")).toHaveLength(7);
+    expect(BUSINESS_TOUR_STEPS.map((s) => s.title)).toEqual([
+      "Welcome to Roqqu Studio",
+      "Your money at a glance",
+      "The right tool for business",
+      "What’s been happening",
+      "Find any payment",
+      "Get around easily",
+      "You’re all set",
+    ]);
+    for (const step of BUSINESS_TOUR_STEPS) {
+      expect(step.chrome).toBe("dashboard");
+      // Intro/closing steps (welcome, done) have no spotlight target: they
+      // render a full-page dim+blur veil with the card centered on top,
+      // rather than punching a hole around a specific dashboard section.
+      expect(step.target === "" || /^biz-/.test(step.target)).toBe(true);
+      expect(step.imageSrc).toMatch(/^\/figma\/tour\/tour-step-\d+\.png$/);
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
+    }
+    expect(BUSINESS_TOUR_STEPS[0]?.target).toBe("");
+    expect(BUSINESS_TOUR_STEPS.at(-1)?.target).toBe("");
+    expect(BUSINESS_TOUR_STEPS.map((step) => step.placement)).toEqual([
+      "center",
+      "below",
+      "below",
+      "above",
+      "above",
+      "right",
+      "center",
+    ]);
+  });
+
+  it("developer tour has ≤3 steps pointing at catalog/chat/run __AC4 AC9", () => {
+    expect(tourStepsFor("developer")).toHaveLength(3);
+    expect(DEVELOPER_TOUR_STEPS.map((s) => s.target)).toEqual([
+      "dev-catalog",
+      "dev-chat",
+      "dev-run",
+    ]);
+    for (const step of DEVELOPER_TOUR_STEPS) {
+      expect(step.chrome).toBe("hover");
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
+    }
+  });
+
+  it("gives business owners a separate plain-words whiteboard tour (#233, AC10)", () => {
+    expect(tourStepsFor("business-workflow")).toBe(BUSINESS_WORKFLOW_TOUR_STEPS);
+    expect(BUSINESS_WORKFLOW_TOUR_STEPS.map((s) => s.target)).toEqual([
+      "biz-workflow-canvas",
+      "dev-catalog",
+      "dev-run",
+    ]);
+    expect(tourDismissKey("business-workflow")).toBe(
+      "roqqu.studio.tour.dismissed.business-workflow",
+    );
+    for (const step of BUSINESS_WORKFLOW_TOUR_STEPS) {
+      expect(step.chrome).toBe("hover");
+      expect(`${step.title} ${step.body}`.toLowerCase()).not.toMatch(
+        /\bir\b|sse|node_type/,
+      );
+    }
+  });
+
+  it("uses stable dismiss keys __AC7", () => {
+    expect(tourDismissKey("business")).toBe(
+      "roqqu.studio.tour.dismissed.business",
+    );
+    expect(tourDismissKey("developer")).toBe(
+      "roqqu.studio.tour.dismissed.developer",
+    );
+  });
+});

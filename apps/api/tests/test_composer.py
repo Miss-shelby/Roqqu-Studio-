@@ -1,0 +1,109 @@
+"""Rooky's ceiling: compose a flow, and the analyzer disposes (#15, D18)."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+import roqqu_studio.ai.composer as composer_mod
+from roqqu_studio.ai.composer import ComposeError, ComposeUnavailable, compose_flow
+from roqqu_studio.ai.providers import KeywordFallback
+from roqqu_studio.ai.schema import RookyFlow, RookyFlowEdge, RookyFlowNode
+from roqqu_studio.api.main import app
+
+client = TestClient(app)
+
+# An ajo-shaped proposal with Rooky's homework NOT done: the webhook feeds the
+# ledger directly (no signature check, no verify, no idempotency).
+UNSAFE_AJO = RookyFlow(
+    name="Ajo contributions",
+    description="Rotating savings: members contribute, one member gets the pot.",
+    explanation="Members pay in monthly; on payout day the pot goes to one member.",
+    nodes=[
+        RookyFlowNode(id="init", type="roqqu.generate_wallet", label="Member Pays In"),
+        RookyFlowNode(id="webhook", type="event.payment_webhook", label="Payment Webhook"),
+        RookyFlowNode(id="credit", type="app.credit_ledger", label="Credit Pot"),
+        RookyFlowNode(id="payday", type="event.scheduled", label="Payout Day"),
+        RookyFlowNode(id="transfer", type="roqqu.send_token", label="Pay Member"),
+    ],
+    edges=[
+        RookyFlowEdge(source="init", target="webhook", kind="control"),
+        RookyFlowEdge(source="webhook", target="credit", kind="event"),
+        RookyFlowEdge(source="payday", target="transfer", kind="event"),
+    ],
+)
+
+
+class _FakeProvider:
+    name = "fake"
+
+    def __init__(self, flows: list[RookyFlow]) -> None:
+        self._flows = list(flows)
+        self.calls = 0
+
+    def available(self) -> bool:
+        return True
+
+    def structured(self, **kwargs):
+        self.calls += 1
+        # Repeat the last canned flow so the multi-round loop never runs dry; a
+        # single-element list is effectively "always returns this proposal".
+        return self._flows.pop(0) if len(self._flows) > 1 else self._flows[0]
+
+
+def test_compose_pipeline_fixes_unsafe_proposal(monkeypatch):
+    monkeypatch.setattr(
+        composer_mod, "select_provider", lambda p=None: _FakeProvider([UNSAFE_AJO])
+    )
+    outcome = compose_flow("I want an ajo app")
+    # Rooky's raw proposal was unsafe; the gates caught and repaired it.
+    caught = {f.rule_id for f in outcome.report_before.findings}
+    assert "MON002" in caught  # webhook to ledger without signature check
+    assert "MON011" in caught  # transfer without beneficiary validation
+    assert outcome.report_after.findings == []
+    assert outcome.steps  # Apply-Fix actually did work
+    node_types = {n.type for n in outcome.workflow.nodes}
+    assert "safety.verify_signature" in node_types
+
+
+def test_invalid_node_types_exhaust_rounds_then_refuse(monkeypatch):
+    bad = RookyFlow(
+        name="bad",
+        nodes=[
+            RookyFlowNode(id="a", type="roqqu.hack_the_bank"),
+            RookyFlowNode(id="b", type="app.notify"),
+        ],
+        edges=[RookyFlowEdge(source="a", target="b")],
+    )
+    fake = _FakeProvider([bad])  # keeps proposing an invalid node type
+    monkeypatch.setattr(composer_mod, "select_provider", lambda p=None: fake)
+    with pytest.raises(ComposeError):  # tried every round, then refused (never shipped)
+        compose_flow("anything")
+    assert fake.calls == composer_mod._MAX_ROUNDS
+
+
+def test_keyword_fallback_cannot_compose(monkeypatch):
+    monkeypatch.setattr(composer_mod, "select_provider", lambda p=None: KeywordFallback())
+    with pytest.raises(ComposeUnavailable):
+        compose_flow("ajo app")
+
+
+def test_compose_endpoint_returns_editable_workflow(monkeypatch):
+    monkeypatch.setattr(
+        composer_mod, "select_provider", lambda p=None: _FakeProvider([UNSAFE_AJO])
+    )
+    res = client.post("/assistant/compose", json={"message": "I want an ajo app"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["analysis"]["findings"] == []
+    assert "MON002" in data["findings_caught"]
+    wf_id = data["workflow"]["id"]
+    # It lands in the store like any workflow: loadable, analyzable, editable.
+    assert client.get(f"/workflows/{wf_id}").status_code == 200
+    assert client.get(f"/workflows/{wf_id}/analysis").json()["findings"] == []
+
+
+def test_compose_endpoint_503_without_provider(monkeypatch):
+    monkeypatch.setattr(composer_mod, "select_provider", lambda p=None: KeywordFallback())
+    res = client.post("/assistant/compose", json={"message": "ajo"})
+    assert res.status_code == 503
