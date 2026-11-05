@@ -1,167 +1,221 @@
 # Roqqu Studio
 
+**Build crypto payment workflows from plain language. Review their safety before they run.**
+
+Built for the **API Conference Lagos 2026 — Build With Roqqu Developer Challenge**.
+
 [![CI](https://github.com/Miss-shelby/Roqqu-Studio-/actions/workflows/ci.yml/badge.svg)](https://github.com/Miss-shelby/Roqqu-Studio-/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Describe a payment product in plain language. Get a visual, typed, safety-checked workflow that becomes a real Roqqu product.**
+### [Launch the live demo →](https://roqqu-studio-web.vercel.app/)
 
-> An endpoint returning `200` does not mean the integration is correct.
-> Roqqu Studio proves the **system around the endpoint** before real money moves.
+[Judge's walkthrough](#judges-walkthrough) · [Features](#features) · [Architecture](#architecture) · [Run locally](#run-locally) · [Configuration](#configuration)
 
-Built for the **API Conference Lagos 2026 - Build With Roqqu Developer Challenge**.
+## The problem
 
----
+A successful API response is only one part of a reliable payment integration. Businesses still need to confirm deposits, prevent duplicate processing, validate amounts, and keep customers informed. Developers must connect these steps correctly; business owners need an interface they can use without writing code.
 
-## Two ways to run it
+Roqqu Studio brings those needs together: a visual workspace for developers and practical payment tools for Nigerian businesses.
 
-**1. Try the live app - nothing to install:**
+## The solution
 
-### [Open the live demo](https://roqqu-studio-web.vercel.app/)
+Describe a payment flow to **Rooky**, the assistant, or start from a template. Studio represents the flow as a typed graph, checks it against deterministic safety rules, and helps repair supported issues through **Apply Fix**. Run the workflow in Practice mode, inspect its execution trace, and explore the Roqqu integration through an API playground.
 
-You start on a clean slate - build your own flow from a template or plain words. Ask the assistant for something impossible (*"build me a rocket to the moon"*) and watch it politely refuse.
+For business owners, Studio also provides accounts, a product store, shareable checkout links, invoices, and a wallet dashboard.
 
-**2. Run the whole thing yourself - one command:**
+**The core idea: AI proposes a workflow; deterministic code checks it.** The analyzer checks defined rules rather than treating an AI response as evidence that a payment flow is correct.
 
-```bash
-docker compose up
+## Judge's walkthrough
+
+Open the [live demo](https://roqqu-studio-web.vercel.app/). Feature availability depends on the deployment's backend, database, and configured integrations.
+
+### 1. Build and review a workflow
+
+1. Choose **I'm a developer** and start from a template, or ask Rooky:
+
+   > Take a TRX payment to a fresh deposit address. When the Roqqu webhook arrives, verify the deposit, then send the customer a WhatsApp confirmation.
+
+2. Inspect the generated nodes and connections on the canvas. Free-text composition requires an AI provider key; templates remain available without one.
+3. Open **Architecture Review**, inspect a finding, and use **Apply Fix** where offered.
+4. Run in **Practice mode** and follow the execution trace. Payment steps are simulated; notifications need separate configuration to be delivered.
+
+**What to evaluate:** the editable workflow, visible safety findings, supported graph repairs, and traceable execution.
+
+### 2. Explore the business experience
+
+1. Open **[/studio/business](https://roqqu-studio-web.vercel.app/studio/business)** and create a business account.
+2. Add products, open the store link, and create an invoice.
+3. Inspect checkout and the wallet dashboard. Use the simulation controls in Practice or test mode to demonstrate the payment lifecycle without moving real funds.
+
+Business accounts require a configured database. Simulated payment confirmations are demo behavior, not evidence of a real deposit.
+
+### 3. Inspect the integration
+
+Open **[/studio/playground](https://roqqu-studio-web.vercel.app/studio/playground)** to explore Roqqu endpoints, request parameters, code examples, and responses. Authenticated requests require server-side Roqqu credentials.
+
+## Features
+
+| Capability | What it provides |
+| --- | --- |
+| Visual workflow builder | A React Flow canvas with typed connections, editable node configuration, and starter templates. |
+| Rooky assistant | Template routing without keys; free-text composition with a configured AI provider and an analyzer feedback loop. |
+| Architecture Review | Deterministic findings for supported payment safety rules, with explanations and graph highlighting. |
+| Apply Fix | Graph transformations that repair supported analyzer findings. |
+| Execution trace | Step-by-step visibility into workflow runs, including simulated execution. |
+| Business tools | Accounts, product listings, shareable stores, invoices, and a wallet dashboard backed by PostgreSQL. |
+| Payment integration | Roqqu payment links, wallet addresses, balances, and transfers; BTC and USDT payment paths. |
+| API playground | Endpoint exploration, request examples, and a downloadable JavaScript client. |
+| Notifications | Optional email and WhatsApp integrations for workflow notifications. |
+
+## Safety by design
+
+The analyzer operates on workflow types and capability tags. Its checks include:
+
+| Rule | Integration risk detected |
+| --- | --- |
+| `MON001` | A client callback is trusted as payment confirmation. |
+| `MON002` | A webhook is processed without signature verification. |
+| `MON003` | A financial effect lacks an idempotency boundary. |
+| `MON004` | The amount paid is not validated against the expected amount. |
+| `MON009` | A split occurs before the required fulfilment step. |
+| `MON011` | A transfer beneficiary is not validated. |
+| `MON012` | A payout has no preceding balance check. |
+
+Production payment handling uses provider confirmation rather than a buyer's success screen. Practice and test simulations are separate paths. Live execution requires explicit configuration. Passing the analyzer means the defined checks passed; it does not certify every aspect of a payment system.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    User[Developer or business owner] --> Web[Next.js web app]
+    Web --> Canvas[Visual workflow canvas]
+    Canvas --> API[FastAPI workflow service]
+    API --> Rooky[Rooky: compose and refine]
+    Rooky --> Checks[Deterministic analyzer and remediation]
+    Checks --> Run[Workflow executor]
+    Run --> Mock[Practice adapter]
+    Run --> Roqqu[Roqqu API Service]
+    Web --> Business[Business API routes]
+    Business --> DB[(PostgreSQL)]
+    Business --> Roqqu
+    Roqqu --> Hooks[Webhook handlers]
+    Hooks --> State[Payment and order state]
 ```
 
-That builds and starts both services. The landing page is at **http://localhost:3000** and the studio at **http://localhost:3000/studio**. No database, no other setup - everything runs in memory. It works with **zero API keys** (the assistant routes by keyword, orders run on a mock adapter). To unlock the live features, drop keys into a `.env` file first:
+The FastAPI service manages workflow analysis and execution using in-memory state. Business accounts, stores, invoices, and wallet records use PostgreSQL through the Next.js server routes. These are separate persistence paths: restarting the API clears its in-memory workflow and execution state.
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript, React Flow, Dagre |
+| Workflow backend | Python, FastAPI, Pydantic |
+| Business persistence | PostgreSQL; local PGlite option |
+| AI adapters | Anthropic, OpenAI, Google, NVIDIA; keyword fallback |
+| Integrations | Roqqu API Service, ZeptoMail, Evolution API |
+| Verification | pytest, Vitest, TypeScript, Ruff, dependency audits |
+| Deployment tooling | Docker Compose, Vercel-compatible web app, Cloud Run scripts |
+
+## Run locally
+
+### Option A: Docker Compose
+
+Requires Git and Docker with Compose support.
 
 ```bash
-cp .env.example .env      # fill in only what you want, then:
-docker compose up
+git clone https://github.com/Miss-shelby/Roqqu-Studio-.git
+cd Roqqu-Studio-
+cp .env.example .env
+docker compose up --build
 ```
 
-<details>
-<summary>Prefer no Docker? Run the two servers directly.</summary>
+Open the app at **http://localhost:3000**, the canvas at **http://localhost:3000/studio**, and the API docs at **http://localhost:8010/docs**.
 
-Needs Python 3.11+ and Node 20+.
+The workflow canvas, templates, analyzer, and Practice runs work without external API keys. Full business features additionally require `DATABASE_URL` and session configuration; Compose does not provision a database.
+
+### Option B: Run the services directly
+
+Use **Python 3.11+**, **uv**, and **Node.js 22** (the version used by the project's CI and Docker web image).
 
 ```bash
-# Terminal 1 - backend (analyzer + Rooky + product API)
+# Terminal 1 — from the repository root
 cd apps/api
-uv sync --all-extras
-uv run pytest -q                                   # 268 tests, no keys needed
-uv run uvicorn roqqu_studio.api.main:app --port 8010 --host 127.0.0.1
+uv sync --frozen --all-extras
+uv run uvicorn roqqu_studio.api.main:app --host 127.0.0.1 --port 8010
+```
 
-# Terminal 2 - frontend canvas
+```bash
+# Terminal 2 — from the repository root
 cd apps/web
-cp .env.example .env.local                         # NEXT_PUBLIC_API_URL=http://127.0.0.1:8010
-npm ci && npm run dev                              # http://localhost:3000
+cp .env.example .env.local
+npm ci
+npm run dev
 ```
-</details>
 
----
+For local business features, run `npm run db:local` from `apps/web` in another terminal and keep it running. Put its printed connection URL in `apps/web/.env.local` as `DATABASE_URL`, add a random `SESSION_SECRET` of at least 32 characters, and restart the web server. See [SETUP.md](SETUP.md) for hosted PostgreSQL and integration settings.
 
-## What it is, in one minute
+## Configuration
 
-A market woman, a freelancer, or a developer describes what they sell. **Rooky** (the assistant) composes a complete Roqqu payment flow as a graph. A deterministic **analyzer** audits that graph for the bugs that only show up in production - unverified webhooks, missing idempotency, unvalidated payouts, insufficient-balance failures - and Rooky is only allowed to hand over a flow that passes. The flow then becomes a real product: a shareable shop link, a proper invoice, and a plain-words dashboard. Nothing is ever marked *paid* until Roqqu itself confirms the money.
+For Docker Compose, edit the root `.env`. For direct development, place backend settings in `apps/api/.env` and web settings in `apps/web/.env.local`. Keep private credentials on the server and out of version control.
 
-The thesis, in one line: **AI proposes, the analyzer disposes. Correctness never rests on the model.**
+| Feature | Settings |
+| --- | --- |
+| Free-text workflow composition | `AI_PROVIDER` and the corresponding `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, or `NVIDIA_API_KEY` |
+| Business accounts and persistent data | `DATABASE_URL`, `SESSION_SECRET` |
+| Roqqu test integration | `RAS_TEST_KEY`; optionally `RAS_MODE=test` |
+| Live Roqqu execution | `RAS_LIVE_KEY`, `RAS_MODE=live`, `ALLOW_PRODUCTION_EXECUTION=true` |
+| Browser-to-backend connection | `NEXT_PUBLIC_API_URL`; `STUDIO_API_ORIGIN` for the same-origin proxy |
+| Public store and payment URLs | `PUBLIC_APP_URL` |
+| Email notifications | `ZEPTOMAIL_API_KEY`, `ZEPTOMAIL_SENDER`, `ZEPTOMAIL_REPLY_TO` |
+| WhatsApp notifications | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` |
 
-## The two demos
+Start with Practice mode or Roqqu test credentials. For business payment callbacks, configure the web application's `/api/ras/webhook` endpoint. The workflow backend has its own `/roqqu/webhook` route; use the endpoint appropriate to the integration being demonstrated. Detailed options are in [SETUP.md](SETUP.md) and [.env.example](.env.example).
 
-**Developer:** open the app → *"I'm a developer"* → in Chat, type *"Take a TRX payment to a fresh deposit address, and when the Roqqu webhook arrives, verify the deposit and then send the customer a WhatsApp confirmation."* → **Run**. Practice mode simulates every step; live mode calls the real Roqqu API (Generate Wallet, Get Wallets), shows the honest `PENDING` status until crypto actually lands, and (after asking where to send it) fires a **real WhatsApp + email** confirmation.
-
-**Business owner:** open the app → *"I'm a business owner"* → pick a template (Ajo, or Sell online) → get a **dashboard** (money in/out), a **shop link** + QR to share on WhatsApp, and a **branded invoice**. A buyer opens the link, picks items, and pays - and it is only marked *paid* once Roqqu confirms it, which defeats fake-transfer-screenshot fraud.
-
-## Look closer (pick your lane)
-
-### 🧑‍💻 Engineer
-- The heart is a typed, event-driven **IR** (a node graph) + a **static analyzer** with deterministic tag-reachability rules - *no LLM in the correctness path* (see the rules table below).
-- Rooky's compose is a **deterministic generate → verify → refine → refuse loop**: she proposes, our code runs the analyzer and Apply-Fix, and returns only a clean flow or refuses honestly.
-- **268 backend + 57 frontend tests**, gated in CI on every PR - and the suite runs **keyless**, so green also proves the no-API-key fallbacks carry the product.
-- Money is exact `Decimal` to the kobo, never `float`. Start at [`docs/ROOKY_ARCHITECTURE.md`](docs/ROOKY_ARCHITECTURE.md) and [`apps/api/roqqu_studio/ai/composer.py`](apps/api/roqqu_studio/ai/composer.py).
-
-### 🧑‍💼 Product / business
-- No code. Usable by an 8-year-old or an 80-year-old: a run reads *"Waiting: customer pays"*, never `node.suspended`.
-- Real outputs from a flow: a **dashboard** (inflow, outflow, net profit), a **shop link** to share, and a **branded invoice** a buyer can pay or forward.
-- No fake-payment-screenshot fraud - *paid* means Roqqu confirmed it.
-
-### 🎨 Designer
-- The generated invoice is a real document; the dashboard is the business's "money book".
-- Design system + screens: the team's [Figma](https://www.figma.com/design/yuXqT1qhA15L3v1jNdPobC/Roqqu-challenge) (onboarding, dashboard, canvas).
-
-### 📣 DevRel
-- Rooky is **grounded in Roqqu's own docs**, so she composes from documented features, not model memory - citations come from the catalog, never invented.
-- Ask Rooky *"why?"* on any node and get a grounded answer with a real Roqqu API Service docs reference.
-- Every catalog node maps to a real Roqqu capability (Collections, Reserved Accounts, Disbursements, Verification/KYC, Reconciliation).
-
-## The safety analyzer
-
-Deterministic, no LLM. Apply-Fix rewrites a flawed graph to a clean one in front of you:
-
-| Rule | Catches |
-|------|---------|
-| MON001 | Client callback trusted as financial truth |
-| MON002 | Webhook processed without signature verification |
-| MON003 | Missing idempotency boundary before a financial effect |
-| MON004 | Amount paid never validated against expected |
-| MON009 | Immediate split where payout must wait for fulfilment |
-| MON011 | Beneficiary account not validated before a transfer |
-| MON012 | Balance not checked before a payout (the live "insufficient balance" failure) |
-
-## Roqqu API playground
-
-Open **/studio/playground** (or the `</>` button in the studio) to try every endpoint in the [Roqqu API Service docs](https://roqqu-api-services.gitbook.io/ras): wallets, send, payment links, balances, trades, transactions, history, prices and rates, customers, IP whitelist, webhooks and analytics (40 endpoints), plus the encrypted webhook. Each endpoint shows its parameters, live JavaScript (axios, fetch, or the generated client), the documented example responses, and a **Send request** button that calls Roqqu through the API server so your key never reaches the browser. **Download roqqu.js** gives you a dependency-free client with one function per endpoint.
-
-Public market endpoints work without keys. Everything else uses `RAS_TEST_KEY` (test mode, no real money). With a live key, anything that moves money or changes your account also needs `ALLOW_PRODUCTION_EXECUTION=true`.
-
-## Business accounts, store and Pay now
-
-Open **/studio/business**. A business owner types four things (their name, the business name, an email and a password) and is in, with a Roqqu wallet on BEP20, TRC20 and Bitcoin created for them. From there:
-
-- **Store** (`/s/<business>`): products with photos and naira prices, one link to share on WhatsApp.
-- **Invoices** (`/pay/<id>`): show the business and owner name, the items, the naira total and the wallet it settles to. Each invoice gets its own Roqqu payment link.
-- **Pay now**: opens the buyer's browser wallet (MetaMask, Rabby, Trust) on BNB Smart Chain and sends exactly the USDT due. BTC and Tron USDT work too. Roqqu's encrypted webhook marks the invoice paid and credits the seller.
-- **Wallet**: balances, addresses with QR codes, and sends confirmed with the account password, under a daily limit.
-
-Business data lives in Postgres (Neon in production; `npm run db:local` for development). See [SETUP.md](SETUP.md#3-business-accounts-store-and-pay-now-web-app).
-
-## Configuration (all optional)
-
-Nothing is required to run the app or the tests. Copy [`.env.example`](.env.example) to `.env` and fill in only what you want; `docker compose up` picks it up automatically.
-
-| Key | Unlocks | Get it |
-|-----|---------|--------|
-| `NVIDIA_API_KEY` (or `GOOGLE_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | Rooky composing new flows from free text | [build.nvidia.com](https://build.nvidia.com) · [aistudio.google.com](https://aistudio.google.com/app/apikey) · [console.anthropic.com](https://console.anthropic.com) · [platform.openai.com](https://platform.openai.com) |
-| `RAS_TEST_KEY` (or `RAS_LIVE_KEY` + `ALLOW_PRODUCTION_EXECUTION=true`) | Real payment links, deposit addresses, verification and payouts | RAS console → Settings → API Keys and Webhooks; docs at [roqqu-api-services.gitbook.io/ras](https://roqqu-api-services.gitbook.io/ras) |
-| `DATABASE_URL`, `SESSION_SECRET` | Business accounts, store, invoices, wallet | [console.neon.tech](https://console.neon.tech) (free) → Connect; then `npm run db:migrate` in `apps/web` |
-| `BREVO_API_KEY`, `BREVO_SENDER` | Optional transactional email (free, 300/day); sign-in itself is email + password | [brevo.com](https://www.brevo.com) → SMTP & API |
-| `ZEPTOMAIL_*` | Real email receipts | [zeptomail.zoho.com](https://zeptomail.zoho.com) |
-| `EVOLUTION_*` | Real WhatsApp nudges (the recipient comes from the run prompt or the node) | a self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance |
-
-**Start with a RAS test key**: it calls the real API without moving real money. A live key is refused until you set `ALLOW_PRODUCTION_EXECUTION=true`. See [SETUP.md](SETUP.md). Secrets never enter logs, workflows, shared links, or AI context.
-
-## Prove the thesis from the command line
-
-No server needed:
+## Verification
 
 ```bash
-cd apps/api
-uv run python scripts/demo_analyze.py     # unsafe hero: 3 critical + 1 high; safe hero: clean
-uv run python scripts/demo_remediate.py   # Apply-Fix drives the unsafe hero to zero findings
-uv run python scripts/rooky_eval.py        # (needs an AI key) compose 9 non-templated ideas, live
+# Backend — from apps/api
+uv run ruff check roqqu_studio tests
+uv run pytest -q
+
+# Frontend — from apps/web
+npm run typecheck
+npm test
+npm run lint
 ```
 
-## Layout
+To demonstrate the analyzer without starting a server, run these commands from `apps/api`:
 
+```bash
+uv run python scripts/demo_analyze.py
+uv run python scripts/demo_remediate.py
 ```
-roqqu-studio/
-├── docker-compose.yml   # the one command: `docker compose up`
+
+**Current limits:** custom-code execution uses POSIX subprocess controls; use Linux, Docker, or WSL for that feature and its tests. Backend tests currently have four related failures on native Windows. The [import baseline CI run](https://github.com/Miss-shelby/Roqqu-Studio-/actions/runs/42089694422) failed during dependency auditing/install; a fully green pipeline has not been established. Check the [current Actions results](https://github.com/Miss-shelby/Roqqu-Studio-/actions) for the latest status.
+
+## Project structure
+
+```text
+.
 ├── apps/
-│   ├── api/   # FastAPI: IR · providers (Roqqu pack) · analysis · remediation · ai (Rooky) · artifacts
-│   └── web/   # Next.js + React Flow canvas, Architecture Review, Rooky chat, trace
-├── docs/      # DOMAINS (the map) · BUILD_PLAN · ENGINEERING_STANDARDS · ROOKY_ARCHITECTURE
-└── scripts/   # deploy-cloud-run.sh + apps/api/scripts demos
+│   ├── api/                 # Workflow API, analyzer, assistant, executor, tests
+│   └── web/                 # Canvas, business API routes, database schema, tests
+├── docs/                    # Product, demo, and engineering documentation
+├── scripts/                 # Deployment tooling
+├── .github/workflows/       # CI and repository automation
+├── docker-compose.yml       # Local web and API services
+└── SETUP.md                 # Credentials, database, and deployment setup
 ```
 
-The product model in plain words lives in [issue #105](https://github.com/Greyisheep/roqqu-studio/issues/105). Build plan and locked decisions: [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+## Documentation and contribution
 
-## Contributing
+- [Demo flows](docs/DEMO_FLOWS.md)
+- [Rooky architecture](docs/ROOKY_ARCHITECTURE.md)
+- [Build plan and decisions](docs/BUILD_PLAN.md)
+- [Engineering standards](docs/ENGINEERING_STANDARDS.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Report an issue](https://github.com/Miss-shelby/Roqqu-Studio-/issues)
 
-We are building this in the open, and you do not have to write Python to help - code, docs, design, and testing all have a way in. Start at [`CONTRIBUTING.md`](CONTRIBUTING.md), or go straight to the [project issues](https://github.com/Miss-shelby/Roqqu-Studio-/issues). Each one names the files to touch, and the whole test suite runs without a single API key.
+Contributions are welcome across engineering, design, documentation, and testing. Open an issue to discuss a change, then submit a focused pull request with relevant verification.
 
 ## License
 
-[MIT](LICENSE) - you own your code and idea.
+Distributed under the [MIT License](LICENSE). The original copyright and permission notice is retained in `LICENSE`.
