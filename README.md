@@ -1,6 +1,6 @@
 # Roqqu Studio
 
-[![CI](https://github.com/Greyisheep/roqqu-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Greyisheep/roqqu-studio/actions/workflows/ci.yml)
+[![CI](https://github.com/Miss-shelby/Roqqu-Studio-/actions/workflows/ci.yml/badge.svg)](https://github.com/Miss-shelby/Roqqu-Studio-/actions/workflows/ci.yml)
 
 **Describe a payment product in plain language. Get a visual, typed, safety-checked workflow that becomes a real Roqqu product.**
 
@@ -15,7 +15,7 @@ Built for the **API Conference Lagos 2026 - Build With Roqqu Developer Challenge
 
 **1. Try the live app - nothing to install:**
 
-### ▶ https://roqqu-studio-web-cu5qickhka-bq.a.run.app
+### [Open the live demo](https://roqqu-studio-web.vercel.app/)
 
 You start on a clean slate - build your own flow from a template or plain words. Ask the assistant for something impossible (*"build me a rocket to the moon"*) and watch it politely refuse.
 
@@ -160,7 +160,7 @@ The product model in plain words lives in [issue #105](https://github.com/Greyis
 
 ## Contributing
 
-We are building this in the open, and you do not have to write Python to help - code, docs, design, and testing all have a way in. Start at [`CONTRIBUTING.md`](CONTRIBUTING.md), or go straight to the [good first issues](https://github.com/Greyisheep/roqqu-studio/labels/good%20first%20issue). Each one names the files to touch, and the whole test suite runs without a single API key.
+We are building this in the open, and you do not have to write Python to help - code, docs, design, and testing all have a way in. Start at [`CONTRIBUTING.md`](CONTRIBUTING.md), or go straight to the [project issues](https://github.com/Miss-shelby/Roqqu-Studio-/issues). Each one names the files to touch, and the whole test suite runs without a single API key.
 
 ## License
 

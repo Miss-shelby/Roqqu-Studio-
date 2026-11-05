@@ -1,0 +1,57 @@
+name: Deploy to Cloud Run
+
+# CD is GATED on CI (#119 follow-up): deploy runs only after the CI workflow
+# finishes green on main, so a red suite can never reach the judges' link.
+# A manual dispatch is the one bypass (for a hand-rolled redeploy).
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Only when the CI run that triggered us passed (dispatch bypasses the gate).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit CI validated (workflow_run carries its sha).
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT }}"
+
+      - name: Deploy API + web
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ROQQU_SECRET_KEY: ${{ secrets.ROQQU_SECRET_KEY }}
+          ROQQU_WEBHOOK_SECRET: ${{ secrets.ROQQU_WEBHOOK_SECRET }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          EVOLUTION_API_URL: ${{ secrets.EVOLUTION_API_URL }}
+          EVOLUTION_API_KEY: ${{ secrets.EVOLUTION_API_KEY }}
+          EVOLUTION_INSTANCE: ${{ secrets.EVOLUTION_INSTANCE }}
+          ZEPTOMAIL_API_KEY: ${{ secrets.ZEPTOMAIL_API_KEY }}
+          ZEPTOMAIL_SENDER: ${{ secrets.ZEPTOMAIL_SENDER }}
+          ZEPTOMAIL_REPLY_TO: ${{ secrets.ZEPTOMAIL_REPLY_TO }}
+        run: bash scripts/deploy-cloud-run.sh

@@ -72,6 +72,18 @@ export function PayNow(props: Props) {
     return () => window.clearInterval(t);
   }, [paid, props.invoiceId]);
 
+  /** Practice/test only: replays Roqqu's payment_link_completed event through the real webhook handler. */
+  async function simulate() {
+    const res = await fetch(`/api/pay/${props.invoiceId}/practice`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount: props.usdtDue }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Simulated payment failed");
+    setStep({ kind: "sent", hash: "" });
+    setStatus("paid");
+  }
+
   async function pay() {
     if (!window.ethereum) {
       setStep({ kind: "error", message: "No browser wallet found. Install MetaMask (or open this page in your wallet's browser), or pay with BTC / Tron below." });
@@ -91,14 +103,7 @@ export function PayNow(props: Props) {
 
       if (props.mode === "practice") {
         // Practice: the wallet connected for real; the payment itself is simulated.
-        const res = await fetch(`/api/pay/${props.invoiceId}/practice`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ amount: props.usdtDue }),
-        });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Practice payment failed");
-        setStep({ kind: "sent", hash: "" });
-        setStatus("paid");
+        await simulate();
         return;
       }
 
@@ -147,6 +152,20 @@ export function PayNow(props: Props) {
         {props.mode === "test" ? " Roqqu test mode." : ""}
       </p>
 
+      {props.mode === "test" ? (
+        <button
+          type="button"
+          className="pp-btn pp-btn--ghost"
+          disabled={step.kind === "paying"}
+          onClick={() => {
+            setStep({ kind: "paying", from: "" });
+            simulate().catch((err) => setStep({ kind: "error", message: walletError(err) }));
+          }}
+        >
+          Simulate a successful payment (test mode)
+        </button>
+      ) : null}
+
       {step.kind === "sent" ? (
         <p className="pp-ok" role="status">
           {step.hash ? (
@@ -155,7 +174,7 @@ export function PayNow(props: Props) {
               Waiting for Roqqu to confirm it…
             </>
           ) : (
-            "Practice payment sent."
+            "Simulated payment sent."
           )}
         </p>
       ) : null}
